@@ -1,0 +1,114 @@
+Introduction:
+Many people have reached out to me to understand which service (EC2 or Fargate) they should use for their EKS cluster that suits their application workload.
+In this article, I am sharing details of EKS cluster with AWS Fargate service, with its comparison to EC2 service. Parameters considered for comparison:
+
+> Architecture
+
+> Pricing
+
+> Logging
+
+> Security
+
+> Auto-Scaling Feature
+
+> Desired use cases based upon type of workloads
+
+
+Fargate in EKS:
+================
+AWS Fargate, is basically a container as a service model, while the EC2 is based upon compute as a service model. The big difference is that in case of EC2 model, you have the flexibility to run basically anything you want in the underlying infrastructure ( with specific hardware, OS, additional security agents).
+While, in case of Fargate, there is less management at your end.
+
+ 
+The primary aim of Fargate is to remove the necessary overhead in managing your own EC2 worker nodes. When a new application is deployed to EKS using Fargate, AWS provisions a new serverless compute environment to run the application.
+Once deployed, this application, running on Kubernetes appears almost identical to its EC2 equivalent due to below features;
+> It still runs as a pod.
+> We can use the same kubectl commands.
+> And, we can still retrieve logging.
+ 
+EKS uses Amazon Fargate to run pods by integrating them with upstream K8s APIs. This helps in running serverless pods using AWS Fargate, along with following added benefits of below services:
+> Serverless capabilities of Fargate.
+> The manageability of EKS pods and,
+> Ensuring the EKS cluster to be on-demand always.
+ 
+Since Fargate deploys the workloads on EKS without requiring to set up EC2 instances- i.e. the service “automatically” configures the node infrastructure, and thus making it easy to focus more on building the applications to drive business outcomes.
+
+Pricing (EC2 vs Fargate):
+=========================
+
+With Fargate, you are charged per second for vCPU, Memory,  Operating Systems, CPU Architecture, and storage (Only if you go above the free 20GB of ephemeral storage) for the Pod. 
+
+With Fargate, you don’t have to pay for related resources like EC2. In case of EC2 instances, you pay for the cost of those instances which are running. 
+
+However in case of Fargate, you pay a fixed price based on the compute and storage resources that your workload consumes. This uniform usage-based pricing model allows Fargate to save money when it has variable resource requirements or unpredictable workloads.
+This helps in avoiding over-provisioning and paying for larger compute instances than that is actually required for the workloads.
+
+This also helps with the rightsizing of applications and ensures that you need to pay only for the resources used by deployed pods. [1]
+
+ 
+Fargate tends to be cheaper in the long run especially in cases if your workload scales up and down massively on a frequent basis. 
+
+But EKS with EC2, will likely costs less for workloads that don’t need to scale frequently, or in cases wherein the cluster needs to run based on specific costs and performance needs.
+ 
+
+Please refer to document for more information related to Fargate and EC2 pricing.
+
+
+I am sharing document related to pricing for EKS control plane.
+
+
+Additionally, you can also save upon pricing for both EC2 and Fargate by utilizing the Compute Savings Plan option.
+
+Logging (EC2 vs Fargate):
+=========================
+
+EC2:
+----
+
+Kubernetes logging can be divided into control plane logging, node logging, and application logging. The Kubernetes control plane is a set of components that manage Kubernetes clusters and produce logs used for auditing and diagnostic purposes. With Amazon EKS, you can turn on logs for different control plane components and send them to CloudWatch.Kubernetes also runs system components such as kubelet and kube-proxy on each Kubernetes node that runs your pods. These components write logs within each node and enable us to configure CloudWatch and Container Insights to capture these logs for each Amazon EKS node.Please refer to guide FluentD for EKS to collect container logs and send logs to Cloudwatch. You may also setup Container Insights on EKS cluster.
+
+FARGATE:
+--------
+With Amazon EKS on Fargate, you can deploy pods without allocating or managing your Kubernetes nodes. This removes the need to capture system-level logs for Kubernetes nodes. In order to capture logs from the Fargate pods, Fluent Bit can be used to forward the logs directly to CloudWatch. This helps in automatically routing the logs to CloudWatch without further configuration or a sidecar container for Amazon EKS pods on Fargate. For more information, kindly refer to Fargate logging guide and Fluent Bit for Amazon EKS documentation. This solution captures the STDOUT and STDERR input/output (I/O) streams from the container and sends them to CloudWatch through Fluent Bit, based on the Fluent Bit configuration for the Amazon EKS cluster on Fargate. Additionally, please refer to guide for setting up logging for EKS cluster for more information.
+
+Security (EC2 vs Fargate):
+==========================
+In terms of security, the containers deployed via Fargate are a bit more secure because they run inside dedicated virtual machines within public subnets. 
+As a result, each pod or task gets dedicated infrastructure capacity. AWS Fargate runs each Kubernetes pod in a VM-isolated environment without sharing resources with other pods.
+
+Hence, containerised workloads running on Fargate do not share network interfaces, Fargate ephemeral storage, CPU, or memory with other tasks or pods.
+
+Containers that are part of the same pod or task share resources when running on Fargate, as these containers will always run on the same host and share compute resources, ephemeral storage, network namespaces, including the IP address and network ports.
+
+With custom security groups, you can add additional defense in depth by specifying fine grained rules that allow inbound and outbound network traffic to and from pods that you deploy on Fargate. [1]
+
+Auto-Scaling  (EC2 vs Fargate):
+===============================
+
+With Fargate, Cluster Autoscaler isn’t needed, and as a result none of the concerns related to scale-in or scale-out are relevant. When you use Fargate, each pod is launched on a right-sized VM that has the same lifecycle as the pod itself. There are no nodes involved and hence no need to scale the cluster. 
+
+Vertical Pod Autoscaler (VPA) can be used to set the initial correct size of CPU and memory for Fargate pods, and then the Horizontal Pod Autoscaler (HPA)can be used to scale those pods. 
+In order to automatically re-deploy pods to Fargate with larger CPU and memory combinations using Vertical Pod Autoscaler, set the mode to either “Auto” or “Recreate” to ensure correct functionality.
+
+
+Horizontal Pod Autoscaler (HPA) can be used to scale the pods based on CPU utilization, memory usage, and custom metrics. Here, the pod replicas are used to scale EKS pods according to the resources usage so as to maintain up-time of service.
+
+Limitations with Fargate:
+=========================
+Though there are quite many added benefits of using EKS with Fargate service, however, there are few points that needs to be taken into consideration before using Fargate service:
+
+> A limit of 4 vCPU and 30 GB of memory per pod.
+> Privileged pods, or pods that use “HostNetwork” or “HostPort”, and “DaemonSets” are not supported in Fargate.
+> Only Network (NLB) or Application Load Balancers (ALB) can be used as ingress with IP targets.
+> Fargate nodes take sometime to launch.
+> GPUs are not currently available on Fargate.
+> Fargate pods can’t be deployed to AWS Outposts, AWS Wavelength or AWS Local Zones.
+
+Hence, from the above discussion, choice between usage of EC2 or Fargate for EKS cluster depends entirely upon the use cases. Please refer to documents [2], which defines specific use cases of EC2 and Fargate depending upon the type of workloads.
+
+References:
+===========
+[+] https://docs.aws.amazon.com/eks/latest/userguide/fargate.html
+
+[+] https://aws.amazon.com/blogs/containers/theoretical-cost-optimization-by-amazon-ecs-launch-type-fargate-vs-ec2/
